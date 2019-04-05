@@ -52,6 +52,17 @@ namespace WorkflowCore.Services
                     EventKey = pointer.EventKey,
                     SubscribeAsOf = result.EventAsOf
                 });
+
+                _eventPublisher.PublishNotification(new WorkflowEventWaiting()
+                {
+                    EventTimeUtc = _datetimeProvider.Now,
+                    Reference = workflow.Reference,
+                    ExecutionPointerId = pointer.Id,
+                    StepId = step.Id,
+                    WorkflowInstanceId = workflow.Id,
+                    WorkflowDefinitionId = workflow.WorkflowDefinitionId,
+                    Version = workflow.Version,
+                });
             }
 
             if (result.Proceed)
@@ -61,7 +72,7 @@ namespace WorkflowCore.Services
                 pointer.Status = PointerStatus.Complete;
 
                 foreach (var outcomeTarget in step.Outcomes.Where(x => object.Equals(x.GetValue(workflow.Data), result.OutcomeValue) || x.GetValue(workflow.Data) == null))
-                {                    
+                {
                     workflow.ExecutionPointers.Add(_pointerFactory.BuildNextPointer(def, pointer, outcomeTarget));
                 }
 
@@ -73,7 +84,7 @@ namespace WorkflowCore.Services
                     StepId = step.Id,
                     WorkflowInstanceId = workflow.Id,
                     WorkflowDefinitionId = workflow.WorkflowDefinitionId,
-                    Version = workflow.Version
+                    Version = workflow.Version,                    
                 });
             }
             else
@@ -81,8 +92,8 @@ namespace WorkflowCore.Services
                 foreach (var branch in result.BranchValues)
                 {
                     foreach (var childDefId in step.Children)
-                    {   
-                        workflow.ExecutionPointers.Add(_pointerFactory.BuildChildPointer(def, pointer, childDefId, branch));                        
+                    {
+                        workflow.ExecutionPointers.Add(_pointerFactory.BuildChildPointer(def, pointer, childDefId, branch));
                     }
                 }
             }
@@ -102,7 +113,7 @@ namespace WorkflowCore.Services
                 Message = exception.Message
             });
             pointer.Status = PointerStatus.Failed;
-            
+
             var queue = new Queue<ExecutionPointer>();
             queue.Enqueue(pointer);
 
@@ -119,7 +130,7 @@ namespace WorkflowCore.Services
                 }
             }
         }
-        
+
         private bool ShouldCompensate(WorkflowInstance workflow, WorkflowDefinition def, ExecutionPointer currentPointer)
         {
             var scope = new Stack<string>(currentPointer.Scope);
