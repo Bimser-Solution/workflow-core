@@ -101,7 +101,7 @@ namespace WorkflowCore.Services
             return wfResult;
         }
 
-        public async Task<WorkflowExecutorResult> ExecuteAll(WorkflowInstance workflow, Action<WorkflowExecutorResult> stepExecutedAction)
+        public async Task<WorkflowExecutorResult> ExecuteUntilEventWait(WorkflowInstance workflow,  Func<WorkflowExecutorResult, Task> stepExecutedAction)
         {
             WorkflowExecutorResult wfResult = null;
             try
@@ -111,7 +111,7 @@ namespace WorkflowCore.Services
             }
             finally
             {
-                stepExecutedAction?.Invoke(wfResult);
+                await stepExecutedAction?.Invoke(wfResult);
             }
 
             if (workflow.Status == WorkflowStatus.Runnable && workflow.NextExecution.HasValue && !wfResult.HasSubscription && !wfResult.HasError)
@@ -123,7 +123,7 @@ namespace WorkflowCore.Services
                     await Task.Delay(TimeSpan.FromTicks(target));
                 }
 
-                wfResult = await this.ExecuteAll(workflow, stepExecutedAction);
+                wfResult = await this.ExecuteUntilEventWait(workflow, stepExecutedAction);
             }
 
             return wfResult;

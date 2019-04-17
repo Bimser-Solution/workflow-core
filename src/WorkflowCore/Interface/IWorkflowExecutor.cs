@@ -14,6 +14,6 @@ namespace WorkflowCore.Interface
         /// <param name="workflow">Workflow instance</param>
         /// <param name="stepExecutedAction">Invoke action after the every step executed</param>
         /// <returns>Last executed step result</returns>
-        Task<WorkflowExecutorResult> ExecuteAll(WorkflowInstance workflow, Action<WorkflowExecutorResult> stepExecutedAction);
+        Task<WorkflowExecutorResult> ExecuteUntilEventWait(WorkflowInstance workflow, Func<WorkflowExecutorResult, Task> stepExecutedAction);
     }
 }

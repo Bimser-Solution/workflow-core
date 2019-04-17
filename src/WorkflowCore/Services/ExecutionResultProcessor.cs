@@ -57,8 +57,6 @@ namespace WorkflowCore.Services
                 {
                     EventTimeUtc = _datetimeProvider.Now,
                     Reference = workflow.Reference,
-                    ExecutionPointerId = pointer.Id,
-                    StepId = step.Id,
                     WorkflowInstanceId = workflow.Id,
                     WorkflowDefinitionId = workflow.WorkflowDefinitionId,
                     Version = workflow.Version,

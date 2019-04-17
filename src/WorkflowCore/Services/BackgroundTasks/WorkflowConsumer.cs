@@ -49,18 +49,7 @@ namespace WorkflowCore.Services.BackgroundTasks
                         var executor = _executorPool.Get();
                         try
                         {
-                            if (Options.UseSingleTask)
-                            {
-                                result = await executor.ExecuteAll(workflow, async (wfResult) =>
-                                {
-                                    //every step should be saved
-                                    await persistenceStore.PersistWorkflow(workflow);
-
-                                    //check cancellation request every step
-                                    cancellationToken.ThrowIfCancellationRequested();
-                                });
-                            }
-                            else
+                            if (Options.AddQueueWhenExecutingSteps)
                             {
                                 try
                                 {
@@ -69,7 +58,18 @@ namespace WorkflowCore.Services.BackgroundTasks
                                 finally
                                 {
                                     await persistenceStore.PersistWorkflow(workflow);
-                                }
+                                }                                
+                            }
+                            else
+                            {
+                                result = await executor.ExecuteUntilEventWait(workflow, async (wfResult) =>
+                                {
+                                    //every step should be saved
+                                    await persistenceStore.PersistWorkflow(workflow);
+
+                                    //check cancellation request every step
+                                    cancellationToken.ThrowIfCancellationRequested();
+                                });
                             }
                         }
                         finally
