@@ -1,6 +1,6 @@
 ﻿namespace WorkflowCore.Models.LifeCycleEvents
 {
-    public class WorkflowEventWaiting : StepCompleted
+    public class WorkflowEventWaiting : LifeCycleEvent
     {
 
     }
