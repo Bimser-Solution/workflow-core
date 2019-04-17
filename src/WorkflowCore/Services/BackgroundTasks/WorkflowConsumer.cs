@@ -34,7 +34,7 @@ namespace WorkflowCore.Services.BackgroundTasks
                 Logger.LogInformation("Workflow locked {0}", itemId);
                 return;
             }
-            
+
             WorkflowInstance workflow = null;
             WorkflowExecutorResult result = null;
             var persistenceStore = _persistenceStorePool.Get();
@@ -49,12 +49,32 @@ namespace WorkflowCore.Services.BackgroundTasks
                         var executor = _executorPool.Get();
                         try
                         {
-                            result = await executor.Execute(workflow);
+                            if (Options.UseSingleTask)
+                            {
+                                result = await executor.ExecuteAll(workflow, async (wfResult) =>
+                                {
+                                    //every step should be saved
+                                    await persistenceStore.PersistWorkflow(workflow);
+
+                                    //check cancellation request every step
+                                    cancellationToken.ThrowIfCancellationRequested();
+                                });
+                            }
+                            else
+                            {
+                                try
+                                {
+                                    result = await executor.Execute(workflow);
+                                }
+                                finally
+                                {
+                                    await persistenceStore.PersistWorkflow(workflow);
+                                }
+                            }
                         }
                         finally
                         {
                             _executorPool.Return(executor);
-                            await persistenceStore.PersistWorkflow(workflow);
                             await QueueProvider.QueueWork(itemId, QueueType.Index);
                         }
                     }
@@ -85,12 +105,12 @@ namespace WorkflowCore.Services.BackgroundTasks
                 _persistenceStorePool.Return(persistenceStore);
             }
         }
-        
+
         private async Task SubscribeEvent(EventSubscription subscription, IPersistenceProvider persistenceStore)
         {
             //TODO: move to own class
             Logger.LogDebug("Subscribing to event {0} {1} for workflow {2} step {3}", subscription.EventName, subscription.EventKey, subscription.WorkflowId, subscription.StepId);
-            
+
             await persistenceStore.CreateEventSubscription(subscription);
             var events = await persistenceStore.GetEvents(subscription.EventName, subscription.EventKey, subscription.SubscribeAsOf);
             foreach (var evt in events)
@@ -121,6 +141,6 @@ namespace WorkflowCore.Services.BackgroundTasks
             {
                 Logger.LogError(ex.Message);
             }
-        }
+        }                
     }
 }

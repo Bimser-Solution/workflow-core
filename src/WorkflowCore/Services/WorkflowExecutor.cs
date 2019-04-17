@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using WorkflowCore.Interface;
 using WorkflowCore.Models;
 using WorkflowCore.Models.LifeCycleEvents;
+using System.Threading;
 
 namespace WorkflowCore.Services
 {
@@ -48,7 +49,7 @@ namespace WorkflowCore.Services
                 _logger.LogError("Workflow {0} version {1} is not registered", workflow.WorkflowDefinitionId, workflow.Version);
                 return wfResult;
             }
-            
+
             _cancellationProcessor.ProcessCancellations(workflow, def, wfResult);
 
             foreach (var pointer in exePointers)
@@ -70,10 +71,10 @@ namespace WorkflowCore.Services
                     });
                     continue;
                 }
-                
+
                 try
                 {
-                    if (!InitializeStep(workflow, step, wfResult, def, pointer)) 
+                    if (!InitializeStep(workflow, step, wfResult, def, pointer))
                         continue;
 
                     await ExecuteStep(workflow, step, pointer, wfResult, def);
@@ -88,7 +89,7 @@ namespace WorkflowCore.Services
                         ErrorTime = _datetimeProvider.Now.ToUniversalTime(),
                         Message = ex.Message
                     });
-                        
+
                     _executionResultProcessor.HandleStepException(workflow, def, pointer, step, ex);
                     Host.ReportStepError(workflow, step, ex);
                 }
@@ -96,6 +97,34 @@ namespace WorkflowCore.Services
             }
             ProcessAfterExecutionIteration(workflow, def, wfResult);
             DetermineNextExecutionTime(workflow);
+
+            return wfResult;
+        }
+
+        public async Task<WorkflowExecutorResult> ExecuteAll(WorkflowInstance workflow, Action<WorkflowExecutorResult> stepExecutedAction)
+        {
+            WorkflowExecutorResult wfResult = null;
+            try
+            {
+                //executing flow
+                wfResult = await Execute(workflow);
+            }
+            finally
+            {
+                stepExecutedAction?.Invoke(wfResult);
+            }
+
+            if (workflow.Status == WorkflowStatus.Runnable && workflow.NextExecution.HasValue && !wfResult.HasSubscription && !wfResult.HasError)
+            {
+                var target = (workflow.NextExecution.Value - _datetimeProvider.Now.ToUniversalTime().Ticks);
+                if (target > 0)
+                {
+                    //TODO maybe cancellationToken can be used
+                    await Task.Delay(TimeSpan.FromTicks(target));
+                }
+
+                wfResult = await this.ExecuteAll(workflow, stepExecutedAction);
+            }
 
             return wfResult;
         }
@@ -227,9 +256,9 @@ namespace WorkflowCore.Services
             {
                 foreach (var pointer in workflow.ExecutionPointers.Where(x => x.Active && (x.Children ?? new List<string>()).Count > 0))
                 {
-                    if (!workflow.ExecutionPointers.FindByScope(pointer.Id).All(x => x.EndTime.HasValue)) 
+                    if (!workflow.ExecutionPointers.FindByScope(pointer.Id).All(x => x.EndTime.HasValue))
                         continue;
-                    
+
                     if (!pointer.SleepUntil.HasValue)
                     {
                         workflow.NextExecution = 0;
@@ -241,9 +270,9 @@ namespace WorkflowCore.Services
                 }
             }
 
-            if ((workflow.NextExecution != null) || (workflow.ExecutionPointers.Any(x => x.EndTime == null))) 
+            if ((workflow.NextExecution != null) || (workflow.ExecutionPointers.Any(x => x.EndTime == null)))
                 return;
-            
+
             workflow.Status = WorkflowStatus.Complete;
             workflow.CompleteTime = _datetimeProvider.Now.ToUniversalTime();
             _publisher.PublishNotification(new WorkflowCompleted()
@@ -255,6 +284,6 @@ namespace WorkflowCore.Services
                 Version = workflow.Version
             });
         }
-        
+
     }
 }
