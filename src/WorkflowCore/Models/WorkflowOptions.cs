@@ -17,8 +17,8 @@ namespace WorkflowCore.Models
         internal TimeSpan IdleTime;
         internal TimeSpan ErrorRetryInterval;
         internal int MaxConcurrentWorkflows = Math.Max(Environment.ProcessorCount, 2);
-        internal bool AddQueueWhenExecutingSteps;
-
+        internal bool ExecuteStepsUntilEventWaits;
+        
         public IServiceCollection Services { get; private set; }
 
         public WorkflowOptions(IServiceCollection services)
@@ -27,7 +27,7 @@ namespace WorkflowCore.Models
             PollInterval = TimeSpan.FromSeconds(10);
             IdleTime = TimeSpan.FromMilliseconds(100);
             ErrorRetryInterval = TimeSpan.FromSeconds(60);
-            AddQueueWhenExecutingSteps = true;
+            ExecuteStepsUntilEventWaits = true;
 
             QueueFactory = new Func<IServiceProvider, IQueueProvider>(sp => new SingleNodeQueueProvider());
             LockFactory = new Func<IServiceProvider, IDistributedLockProvider>(sp => new SingleNodeLockProvider());
@@ -79,10 +79,10 @@ namespace WorkflowCore.Models
         /// <summary>
         /// Set the workflow step execution policy
         /// </summary>
-        /// <param name="addQueueWhenExecutingSteps">If you want the workflow to execute all the steps on the same node until the event waits, set true. Otherwise false.</param>
-        public void UseQueueWhenExecutingSteps(bool addQueueWhenExecutingSteps)
+        /// <param name="executeStepsUntilEventWaits">If you want the workflow to execute all the steps on the same node until the event waits, set true. Otherwise false.</param>
+        public void UseExecuteStepsUntilEventWaitsPolicy(bool executeStepsUntilEventWaits)
         {
-            AddQueueWhenExecutingSteps = addQueueWhenExecutingSteps;
+            ExecuteStepsUntilEventWaits = executeStepsUntilEventWaits;
         }
     }
         

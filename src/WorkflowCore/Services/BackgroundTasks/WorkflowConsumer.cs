@@ -44,12 +44,12 @@ namespace WorkflowCore.Services.BackgroundTasks
                 {
                     cancellationToken.ThrowIfCancellationRequested();
                     workflow = await persistenceStore.GetWorkflowInstance(itemId);
-                    if (workflow.Status == WorkflowStatus.Runnable)
+                    if (workflow?.Status == WorkflowStatus.Runnable)
                     {
                         var executor = _executorPool.Get();
                         try
                         {
-                            if (Options.AddQueueWhenExecutingSteps)
+                            if (!Options.ExecuteStepsUntilEventWaits)
                             {
                                 try
                                 {

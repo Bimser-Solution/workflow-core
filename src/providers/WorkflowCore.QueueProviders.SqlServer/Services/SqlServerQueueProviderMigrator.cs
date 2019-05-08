@@ -161,7 +161,7 @@ namespace WorkflowCore.QueueProviders.SqlServer.Services
 
             var tx = cn.BeginTransaction();
             try
-            {
+            {                
                 _sqlCommandExecutor.ExecuteCommand(cn, tx, $"ALTER DATABASE [{db}] SET ENABLE_BROKER;");
                 tx.Commit();
             }
