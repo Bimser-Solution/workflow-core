@@ -28,11 +28,10 @@ namespace WorkflowCore.QueueProviders.RabbitMQ.Services
 
         public async Task QueueWork(string id, QueueType queue)
         {
-            if (_connection == null)
-                throw new InvalidOperationException("RabbitMQ provider not running");
+            await ConnectToServer();
 
             using (var channel = _connection.CreateModel())
-            {
+            {                
                 channel.QueueDeclare(queue: GetQueueName(queue), durable: true, exclusive: false, autoDelete: false, arguments: null);
                 var body = Encoding.UTF8.GetBytes(id);
                 channel.BasicPublish(exchange: "", routingKey: GetQueueName(queue), basicProperties: null, body: body);
@@ -76,7 +75,7 @@ namespace WorkflowCore.QueueProviders.RabbitMQ.Services
 
         public async Task Start()
         {
-            _connection = _connectionFactory.CreateConnection("Workflow-Core");
+            await ConnectToServer();
         }
 
         public async Task Stop()
@@ -85,6 +84,19 @@ namespace WorkflowCore.QueueProviders.RabbitMQ.Services
             {
                 _connection.Close();
                 _connection = null;
+            }
+        }
+
+        private async Task ConnectToServer()
+        {
+            if (_connection == null)
+            {
+                _connection = _connectionFactory.CreateConnection("Workflow-Core");
+
+                if (_connection == null)
+                {
+                    throw new InvalidOperationException("RabbitMQ provider not running");
+                }
             }
         }
 
